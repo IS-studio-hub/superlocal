@@ -1,0 +1,793 @@
+
+/* Smooth scrolling optimizations */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Performance optimizations for scrolling */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Ensure body is visible immediately */
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Ensure main content is visible immediately on load - but allow inline CSS to override for FOUC prevention */
+/* The inline CSS will hide it until replacements are ready, then show it */
+#main {
+  /* Removed forced visibility to allow FOUC prevention system to work */
+  /* Content will be shown via body.replacements-ready class */
+}
+
+/* Prevent layout shifts during initial load */
+.framer-hVDZ8 {
+  min-height: 100vh;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Local fonts for RST Reactor - Using placeholder fonts since font files are not available */
+/* Font files would be loaded from Content/fonts/ if available */
+/* Using placeholder fonts with Arial fallback for now */
+@font-face { 
+  font-family: "RST Reactor Regular Placeholder"; 
+  src: local("Arial"); 
+  ascent-override: 92.34%; 
+  descent-override: 26.78%; 
+  line-gap-override: 0.00%; 
+  size-adjust: 108.30%; 
+}
+@font-face { 
+  font-family: "RST Reactor Medium Placeholder"; 
+  src: local("Arial"); 
+  ascent-override: 91.28%; 
+  descent-override: 26.47%; 
+  line-gap-override: 0.00%; 
+  size-adjust: 109.55%; 
+}
+@font-face { 
+  font-family: "Inter Placeholder"; 
+  src: local("Arial"); 
+  ascent-override: 89.79%; 
+  descent-override: 22.36%; 
+  line-gap-override: 0.00%; 
+  size-adjust: 107.89%; 
+}
+
+.framer-hVDZ8 .framer-9zvx9m {
+  z-index: 3;
+  background-color: var(--token-91b085f6-f83f-4107-a271-57ff605cb9fa, #fbf5e7);
+  height: min-content;
+  overflow: var(--overflow-clip-fallback, clip);
+  flex-flow: column;
+  flex: none;
+  place-content: flex-start;
+  align-items: flex-start;
+  gap: 104px;
+  width: 100%;
+  padding: 0;
+  display: flex;
+  position: relative;
+}
+
+.framer-hVDZ8 .framer-1dz5xtm {
+  aspect-ratio: 1;
+  background-color: #83a43c;
+  height: var(--framer-aspect-ratio-supported, 2160px);
+  overflow: var(--overflow-clip-fallback, clip);
+  will-change: var(--framer-will-change-override, transform);
+  z-index: 2;
+  border-radius: 9999px;
+  flex: none;
+  width: 150%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Hover effect for button: change brown background to red and text to white */
+a[href*="mientrada.com.uy"] [data-framer-name="Brown BG"] {
+  transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+a[href*="mientrada.com.uy"]:hover [data-framer-name="Brown BG"] {
+  background-color: #cb281f !important;
+}
+
+a[href*="mientrada.com.uy"] [data-framer-name="Title"] .framer-text {
+  transition: none !important;
+}
+
+/* Line-by-line animation for h2 and paragraph text */
+.h2-line-wrapper,
+.p-line-wrapper,
+.text-line-wrapper,
+.h3-line-wrapper {
+  display: block;
+  overflow: hidden;
+  line-height: inherit;
+  /* Optimize for animations */
+  contain: layout style paint;
+}
+
+.h2-line,
+.p-line,
+.text-line,
+.h3-line {
+  display: block;
+  transform: translateY(100%);
+  opacity: 0;
+  /* Use GPU acceleration */
+  will-change: transform, opacity;
+  /* Optimize transitions for smooth scrolling */
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Force GPU acceleration */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+.h2-line.animate,
+.p-line.animate,
+.text-line.animate,
+.h3-line.animate {
+  transform: translateY(0);
+  opacity: 1;
+  /* Remove will-change after animation to free resources */
+  will-change: auto;
+}
+
+
+
+/* Framer-generated minified CSS */
+/* ============================================
+   FRAMER CSS - RESTRUCTURED & ORGANIZED
+   ============================================ */
+
+/* ============================================
+   RESET & BASE STYLES
+   ============================================ */
+
+#main {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+:root {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: inherit;
+}
+h1,h2,h3,h4,h5,h6,p,figure {
+  margin: 0;
+}
+body,input,textarea,select,button {
+  font-family: sans-serif;
+  font-size: 12px;
+}
+/* ============================================ CSS VARIABLES & TOKENS ============================================ */ body {
+  --token-b086004c-f114-4ac9-8804-61c670031bc0: #3d2800;
+  --token-91b085f6-f83f-4107-a271-57ff605cb9fa: #fbf5e7;
+  --token-edbd19a8-14d1-4b6a-b511-3fd28480302a: #970307;
+  --token-d21d96dd-3760-403d-b35e-c511262b85ab: #edcb66;
+  --token-6e2ea5ec-2ece-4989-b1a8-fe1248220c08: #7ab287;
+  --token-7beaba84-a1bf-4e7f-b46e-2784dbbe1d11: #fff7e3;
+  --framer-will-change-override: none;
+}
+@supports (background: -webkit-named-image(i)) and (not (grid-template-rows: subgrid)) {
+  body {
+    --framer-will-change-override: transform;
+  }
+}
+body {
+  --framer-will-change-filter-override: none;
+}
+@supports (background: -webkit-named-image(i)) and (not (position-area: top right)) {
+  body {
+    --framer-will-change-filter-override: filter;
+  }
+}
+/* ============================================ COMPONENT BASE STYLES ============================================ */ [data-framer-component-type] {
+  position: absolute;
+}
+[data-framer-component-type="Text"] {
+  cursor: inherit;
+}
+[data-framer-component-text-autosized] * {
+  white-space: pre;
+}
+[data-framer-component-type="Text"] > * {
+  text-align: var(--framer-text-alignment,start);
+}
+/* Note: Due to the extensive size of the Framer CSS,the remaining component-specific styles,media queries,and utility classes are maintained in their current format. The structure above demonstrates the organization pattern that should be applied throughout. */
+
+/* Navigation text color override */
+[data-framer-name="Frame 38"] .framer-text {
+  --framer-text-color: #970307 !important;
+  color: #970307 !important;
+}
+
+/* Button hover effects - Best practice: Use CSS for transitions */
+.framer-RFCBE [data-framer-name="Title"] .framer-text {
+  --framer-text-color: #edcb66 !important;
+  color: #edcb66 !important;
+  transition: color 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.framer-RFCBE:hover [data-framer-name="Title"] .framer-text {
+  --framer-text-color: rgb(21, 115, 255) !important;
+  color: rgb(21, 115, 255) !important;
+}
+
+/* Brown BG hover effect */
+.framer-RFCBE [data-framer-name="Brown BG"] {
+  transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.framer-RFCBE:hover [data-framer-name="Brown BG"] {
+  background-color: white !important;
+}
+
+/* Optimize video for smooth playback and prevent scroll interference */
+[data-framer-name="Bottom IMG Container"] video {
+  will-change: transform !important;
+  transform: translateZ(0) !important; /* Force GPU acceleration */
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  contain: layout style paint !important; /* Isolate video rendering */
+  pointer-events: none !important; /* Prevent video from blocking scroll */
+  -webkit-transform: translateZ(0) !important;
+  -moz-transform: translateZ(0) !important;
+  -ms-transform: translateZ(0) !important;
+  -o-transform: translateZ(0) !important;
+}
+
+/* Bottom IMG Container - Complete styles */
+[data-framer-name="Bottom IMG Container"],
+.framer-18sdlbr {
+  height: min-content;
+  overflow: clip;
+  flex-flow: column;
+  flex: none;
+  place-content: center;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  display: flex;
+  position: relative;
+  contain: layout style paint !important;
+  will-change: transform !important;
+  transform: translateZ(0) !important;
+}
+
+/* Specific override for framer-hVDZ8 context */
+.framer-hVDZ8 .framer-18sdlbr {
+  height: 2500px;
+  overflow: var(--overflow-clip-fallback, clip);
+  flex-flow: column;
+  flex: none;
+  place-content: center;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  display: flex;
+  position: relative;
+}
+
+.framer-hVDZ8 .framer-187vy56 {
+  /* height: 180vh; */
+  overflow: var(--overflow-clip-fallback, clip);
+  z-index: 2;
+  flex-flow: row;
+  flex: none;
+  place-content: flex-start;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  display: flex;
+  position: relative;
+}
+
+/* Bottom Section Styles - Extracted from inline styles */
+[data-framer-name="Bottom Section"] {
+  height: min-content;
+  overflow: clip;
+  z-index: 3;
+  flex-flow: column;
+  flex: none;
+  place-content: center flex-start;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  padding: 0;
+  display: flex;
+  position: relative;
+}
+
+.framer-1a8dfba-container {
+  aspect-ratio: 1.77778;
+  height: var(--framer-aspect-ratio-supported, 810px);
+  flex: none;
+  width: 100%;
+  position: relative;
+  will-change: transform;
+  opacity: 1;
+  transform: none;
+}
+
+.framer-1a8dfba-container video {
+  cursor: auto;
+  width: 100%;
+  height: 100%;
+  border-radius: 0px;
+  display: block !important;
+  object-fit: cover !important;
+  background-color: rgba(0, 0, 0, 0);
+  object-position: 50% 50% !important;
+  will-change: transform !important;
+  transform: translateZ(0px) !important;
+  backface-visibility: hidden !important;
+  perspective: 1000px !important;
+  contain: layout style paint !important;
+  pointer-events: none !important;
+}
+
+/* Exp Completa Section */
+[data-framer-name="Exp Completa"] {
+  background-color: var(--token-91b085f6-f83f-4107-a271-57ff605cb9fa, #fbf5e7);
+  height: min-content;
+  overflow: clip;
+  flex-flow: column;
+  flex: none;
+  place-content: flex-start;
+  align-items: flex-start;
+  gap: 0;
+  width: 100%;
+  padding: 16px 24px 0;
+  display: flex;
+  position: relative;
+}
+
+[data-framer-name="Title"] {
+  flex-flow: column;
+  flex: none;
+  place-content: flex-end flex-start;
+  align-items: flex-end;
+  gap: 112px;
+  width: 100%;
+  height: min-content;
+  padding: 0 0 80px;
+  display: flex;
+  position: relative;
+  overflow: visible;
+}
+
+.framer-16ahnvi {
+  flex-flow: row;
+  flex: none;
+  place-content: flex-start;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+  height: min-content;
+  padding: 0;
+  display: flex;
+  position: relative;
+  overflow: visible;
+}
+
+.framer-hbpxu0 {
+  height: min-content;
+  overflow: clip;
+  flex-flow: column;
+  flex: none;
+  place-content: flex-start;
+  align-items: flex-start;
+  gap: 23px;
+  width: 33%;
+  padding: 0;
+  display: flex;
+  position: relative;
+}
+
+/* Logos sections */
+[data-framer-name="Logos 1"],
+[data-framer-name="Logos 2"] {
+  flex-flow: row;
+  flex: none;
+  place-content: flex-start;
+  align-items: flex-start;
+  gap: 0;
+  width: 100%;
+  height: min-content;
+  padding: 0 0 24px;
+  display: flex;
+  position: relative;
+  overflow: visible;
+}
+
+/* IMGs section */
+[data-framer-name="IMGs"] {
+  height: min-content;
+  overflow: clip;
+  flex-flow: row;
+  flex: none;
+  place-content: flex-end center;
+  align-items: flex-end;
+  gap: 0;
+  width: 100%;
+  padding: 112px 0 0;
+  display: flex;
+  position: relative;
+}
+
+/* Image containers */
+.framer-10h5dgo,
+.framer-veibnw,
+.framer-1am7hdz {
+  flex: none;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  will-change: transform;
+  opacity: 1;
+  transform: none;
+}
+
+/* Background image wrappers */
+[data-framer-background-image-wrapper="true"] {
+  position: absolute;
+  border-radius: inherit;
+  inset: 0px;
+}
+
+[data-framer-background-image-wrapper="true"] img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-position: center center;
+  object-fit: cover;
+}
+
+/* Text elements with processed/animated classes */
+.framer-text[data-processed="true"][data-animated="true"] {
+  opacity: 1;
+  transform: none;
+  will-change: transform;
+}
+
+/* RichTextContainer styles */
+[data-framer-component-type="RichTextContainer"] {
+  transform: none;
+}
+
+/* H1 text color override */
+h1.framer-text {
+  --framer-text-color: rgb(21, 115, 255) !important;
+  color: rgb(21, 115, 255) !important;
+}
+
+/* Logo container styles - ensure visibility on all screen sizes */
+.framer-hVDZ8 .framer-1jfqmpe[data-framer-name="Logo"],
+.framer-hVDZ8 .framer-1jfqmpe {
+  height: min-content;
+  /* overflow: var(--overflow-clip-fallback, clip); */
+  z-index: 9;
+  flex-flow: row;
+  flex: none;
+  place-content: center;
+  align-items: center;
+  gap: 0;
+  width: min-content;
+  padding: 0;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.framer-hVDZ8 .framer-1mz041f-container {
+  width: fit-content;
+  z-index: 8;
+  flex: none;
+  height: auto;
+  position: fixed;
+  top: 24px;
+  right: 24px;
+}
+
+.framer-hVDZ8 .framer-9gjpb2-container svg {
+  width: 100%;
+  height: auto;
+  max-width: 293px;
+  display: block;
+}
+
+/* Show logo on all screen sizes - override hidden-loch95 and any other hidden classes */
+.framer-hVDZ8 .framer-1jfqmpe[data-framer-name="Logo"] .framer-9gjpb2-container,
+.framer-hVDZ8 .framer-9gjpb2-container,
+.framer-hVDZ8 .framer-9gjpb2-container.hidden-loch95 {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Force logo visibility on smaller screens - override any hidden classes */
+@media (max-width: 999.98px) {
+  /* Ensure parent logo container is visible */
+  .framer-hVDZ8 .framer-1jfqmpe[data-framer-name="Logo"],
+  .framer-hVDZ8 .framer-1jfqmpe {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    top: 12px;
+    left: 12px;
+    z-index: 10;
+  }
+  
+  /* Force inner container to be visible even with hidden-loch95 class */
+  .framer-hVDZ8 .framer-1jfqmpe[data-framer-name="Logo"] .framer-9gjpb2-container,
+  .framer-hVDZ8 .framer-9gjpb2-container,
+  .framer-hVDZ8 .framer-9gjpb2-container.hidden-loch95 {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  .framer-hVDZ8 .framer-9gjpb2-container svg {
+    max-width: 200px;
+    display: block !important;
+    visibility: visible !important;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .framer-hVDZ8 .framer-1jfqmpe {
+    top: 12px;
+    left: 12px;
+  }
+  
+  .framer-hVDZ8 .framer-9gjpb2-container svg {
+    max-width: 180px;
+  }
+}
+
+@media (max-width: 480px) {
+  .framer-hVDZ8 .framer-1jfqmpe {
+    top: 12px;
+    left: 12px;
+  }
+  
+  .framer-hVDZ8 .framer-9gjpb2-container svg {
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 360px) {
+  .framer-hVDZ8 .framer-9gjpb2-container svg {
+    max-width: 120px;
+  }
+}
+
+/* Footer styles - ensure it appears above logo when overlapping */
+#footer,
+.framer-5pgh20-container {
+  position: relative;
+  z-index: 10;
+  /* Cross-browser compatibility */
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100vh;
+  min-height: -webkit-fill-available; /* iOS Safari fix */
+  /* Ensure footer works on all browsers */
+  display: block;
+  overflow: hidden;
+  /* Prevent horizontal scroll on mobile */
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Footer container responsive fixes */
+#footer > div,
+.framer-5pgh20-container > div {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+/* Ensure physics container doesn't overflow */
+[data-framer-name="Physics DSK"] {
+  max-width: 100%;
+  overflow: hidden;
+  /* Cross-browser width fix */
+  width: 100%;
+  box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+}
+
+/* Physics container styles - Cross-browser and responsive */
+[data-framer-name="Physics DSK"],
+[data-framer-name="Physics DSK"] > div,
+[data-framer-name="Physics DSK"] > div[draggable="false"] {
+  position: relative;
+  overflow: visible !important;
+  height: 100%;
+  width: 100%;
+  pointer-events: auto;
+  /* Cross-browser compatibility */
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  /* Ensure container adapts to viewport */
+  min-height: 100vh;
+  min-height: -webkit-fill-available; /* iOS Safari fix */
+}
+
+/* Physics body elements - Cross-browser compatible */
+.physics-body,
+[id^="physics-body-footer"] {
+  position: absolute;
+  cursor: grab;
+  cursor: -webkit-grab; /* Safari */
+  cursor: -moz-grab; /* Firefox */
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  -moz-tap-highlight-color: transparent;
+  will-change: transform;
+  -webkit-will-change: transform;
+  transform-origin: center center;
+  -webkit-transform-origin: center center;
+  -moz-transform-origin: center center;
+  -ms-transform-origin: center center;
+  /* Ensure elements are interactive on all devices */
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  /* Cross-browser transform support */
+  -webkit-transform: translateZ(0); /* Force hardware acceleration */
+  -moz-transform: translateZ(0);
+  -ms-transform: translateZ(0);
+  transform: translateZ(0);
+  /* Backface visibility for performance */
+  -webkit-backface-visibility: hidden;
+  -moz-backface-visibility: hidden;
+  -ms-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.physics-body:active,
+[id^="physics-body-footer"]:active {
+  cursor: grabbing;
+  cursor: -webkit-grabbing; /* Safari */
+  cursor: -moz-grabbing; /* Firefox */
+}
+
+/* Block pointer events on children of physics bodies */
+.physics-body *,
+[id^="physics-body-footer"] * {
+  pointer-events: none;
+}
+
+/* Responsive adjustments for physics elements - Mobile */
+@media (max-width: 768px) {
+  .physics-body,
+  [id^="physics-body-footer"] {
+    /* Ensure touch targets are large enough on mobile */
+    min-width: 44px;
+    min-height: 44px;
+    /* Better touch handling on mobile */
+    -webkit-touch-callout: none;
+    touch-action: pan-y pinch-zoom;
+  }
+  
+  /* Scale down physics elements on mobile for better fit */
+  [data-framer-name="Physics DSK"] {
+    transform: scale(0.9);
+    -webkit-transform: scale(0.9);
+    transform-origin: center center;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+  [data-framer-name="Physics DSK"] {
+    transform: scale(0.95);
+    -webkit-transform: scale(0.95);
+    transform-origin: center center;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .physics-body,
+  [id^="physics-body-footer"] {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  
+  [data-framer-name="Physics DSK"] {
+    transform: scale(0.85);
+    -webkit-transform: scale(0.85);
+  }
+}
+
+/* Very small screens */
+@media (max-width: 360px) {
+  [data-framer-name="Physics DSK"] {
+    transform: scale(0.8);
+    -webkit-transform: scale(0.8);
+  }
+}
+
+/* Large screens - ensure footer scales properly */
+@media (min-width: 1920px) {
+  [data-framer-name="Physics DSK"] {
+    max-width: 1920px;
+    margin: 0 auto;
+  }
+}
+
+/* Prevent text selection during drag on mobile */
+@media (max-width: 1024px) {
+  .physics-body,
+  [id^="physics-body-footer"] {
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    user-drag: none;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (max-width: 1024px) and (orientation: landscape) {
+  [data-framer-name="Physics DSK"] {
+    transform: scale(0.9);
+    -webkit-transform: scale(0.9);
+  }
+}
+
+/* Cross-browser viewport height fix for mobile browsers */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari */
+  [data-framer-name="Physics DSK"] > div[draggable="false"] {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Firefox specific fixes */
+@-moz-document url-prefix() {
+  .physics-body,
+  [id^="physics-body-footer"] {
+    -moz-user-select: none;
+  }
+}
+
+/* Edge/IE fixes */
+@supports (-ms-ime-align: auto) {
+  .physics-body,
+  [id^="physics-body-footer"] {
+    -ms-touch-action: none;
+  }
+}
