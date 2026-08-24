@@ -40,6 +40,32 @@
     return safeQuerySelector('div[draggable="false"]', physicsContainer);
   }
 
+  function getFooterMode() {
+    if (typeof window.getFooterMode === 'function') {
+      return window.getFooterMode() || 'desktop';
+    }
+    return window.__footerMode || 'desktop';
+  }
+
+  function resetPhysicsForRelayout() {
+    try {
+      if (dragging) {
+        cancelDrag();
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    items.forEach(function(item) {
+      if (item && item.el && item.el.dataset) {
+        delete item.el.dataset.physicsActive;
+      }
+    });
+    items = [];
+    setupDone = false;
+    animating = false;
+    setupPhysics();
+  }
+
   function getFooterVisualScale() {
     if (typeof window.getFooterScale === 'function') {
       const s = window.getFooterScale();
@@ -193,7 +219,10 @@
     mountDragToBody(item);
 
     const rotationDeg = (item.rotation || 0) * 180 / Math.PI;
-    const scale = getDragScale(item) * getFooterVisualScale();
+    // Only apply footer visual scale when the whole footer is CSS-scaled.
+    // In mobile mode bodies are already sized in layout pixels.
+    const footerScale = getFooterMode() === 'mobile' ? 1 : getFooterVisualScale();
+    const scale = getDragScale(item) * footerScale;
     item.el.style.position = 'fixed';
     item.el.style.left = clientX + 'px';
     item.el.style.top = clientY + 'px';
@@ -535,12 +564,44 @@
         
         const metrics = getContainerMetrics(innerContainer);
         if (!metrics) return;
+
+        const mode = getFooterMode();
+        const footerScale = getFooterVisualScale();
+        const remap = mode === 'mobile' && footerScale > 0 && footerScale < 0.999;
+
+        // Prefer original Framer design coordinates (inline left/top) when remapping to mobile
+        let designX = null;
+        let designY = null;
+        if (remap) {
+          const left = parseFloat(el.style.left);
+          const top = parseFloat(el.style.top);
+          if (!isNaN(left) && !isNaN(top)) {
+            designX = left;
+            designY = top;
+          }
+        }
         
         // Convert visual rect into layout/design coordinates (accounts for footer CSS scale)
-        const x = ((rect.left + rect.width / 2) - metrics.rect.left) / metrics.scaleX;
-        const y = ((rect.top + rect.height / 2) - metrics.rect.top) / metrics.scaleY;
-        const layoutWidth = rect.width / metrics.scaleX;
-        const layoutHeight = rect.height / metrics.scaleY;
+        let x = ((rect.left + rect.width / 2) - metrics.rect.left) / metrics.scaleX;
+        let y = ((rect.top + rect.height / 2) - metrics.rect.top) / metrics.scaleY;
+        let layoutWidth = rect.width / metrics.scaleX;
+        let layoutHeight = rect.height / metrics.scaleY;
+
+        if (remap) {
+          // Scale design-sized pieces into the mobile column
+          layoutWidth = layoutWidth * footerScale;
+          layoutHeight = layoutHeight * footerScale;
+          if (designX != null && designY != null) {
+            x = designX * footerScale;
+            y = designY * footerScale;
+          } else {
+            x = x * footerScale;
+            y = y * footerScale;
+          }
+          // Keep inside the mobile stage
+          x = Math.max(layoutWidth / 2, Math.min(metrics.layoutWidth - layoutWidth / 2, x));
+          y = Math.max(layoutHeight / 2, Math.min(metrics.layoutHeight - layoutHeight / 2, y));
+        }
         
         const transform = style.transform;
         let rotation = 0;
@@ -594,14 +655,19 @@
         
         // Ensure clickable area matches element size exactly (now matches SVG)
         // Use the dimensions we set from SVG viewBox (layout space)
-        const finalWidth = (rect.width > 0 ? rect.width / metrics.scaleX : null)
+        let finalWidth = (rect.width > 0 ? rect.width / metrics.scaleX : null)
           || parseFloat(el.style.width)
           || layoutWidth
           || 100;
-        const finalHeight = (rect.height > 0 ? rect.height / metrics.scaleY : null)
+        let finalHeight = (rect.height > 0 ? rect.height / metrics.scaleY : null)
           || parseFloat(el.style.height)
           || layoutHeight
           || 100;
+
+        if (remap) {
+          finalWidth = finalWidth * footerScale;
+          finalHeight = finalHeight * footerScale;
+        }
         
         el.style.width = finalWidth + 'px';
         el.style.height = finalHeight + 'px';
@@ -613,6 +679,10 @@
         // Update item dimensions to match
         item.width = finalWidth;
         item.height = finalHeight;
+        if (remap) {
+          item.x = x;
+          item.y = y;
+        }
 
         // Replace Framer top/left + translate(50%,50%) with physics transform so position matches drag/release
         el.style.top = '';
@@ -1187,8 +1257,14 @@
       // Delay to allow orientation change to complete
       setTimeout(handleResize, 100);
     }, {passive: true});
-    window.addEventListener('footer-scale-change', function() {
-      setTimeout(handleResize, 30);
+    window.addEventListener('footer-scale-change', function(e) {
+      const mode = (e && e.detail && e.detail.mode) || getFooterMode();
+      // Mode switches need a full physics re-init so sizes/positions remap.
+      if (mode === 'mobile' || getFooterMode() === 'mobile') {
+        setTimeout(resetPhysicsForRelayout, 40);
+      } else {
+        setTimeout(handleResize, 30);
+      }
     }, {passive: true});
     
     // Visual Viewport: only run layout work when dimensions change (not on every scroll)

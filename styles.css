@@ -670,39 +670,51 @@ canvas {
 }
 
 /*
- * Mobile + portrait tablets: keep the DESKTOP footer composition,
- * scaled to the column width (see js/footer-responsive.js).
- * Do not use ad-hoc Physics DSK scale transforms — they break drag math.
+ * Mobile / portrait: use Framer Phone variant (readable stacked chrome).
+ * Physics remaps into the fluid column via js/footer-responsive.js + physics.js.
  */
+#footer.footer-mobile,
+.framer-5pgh20-container.footer-mobile {
+  min-height: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  height: auto !important;
+}
+
+#footer.footer-mobile > div.framer-5b4Eg,
+.framer-5pgh20-container.footer-mobile > div.framer-5b4Eg {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 70vh !important;
+  overflow: hidden !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+}
+
+/* Cancel Framer's fixed 390×1420 phone box — use fluid column width */
+@media (max-width: 999.98px) {
+  .framer-hVDZ8 .framer-5pgh20-container.footer-mobile,
+  #footer.footer-mobile {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  #footer.footer-mobile > div.framer-5b4Eg.framer-v-1ft20dn,
+  .framer-5pgh20-container.footer-mobile > div.framer-5b4Eg.framer-v-1ft20dn {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 720px !important;
+  }
+}
+
+/* Legacy scaled class kept as no-op safety if old markup references it */
 #footer.footer-scaled,
 .framer-5pgh20-container.footer-scaled {
   min-height: 0 !important;
   max-height: none !important;
   max-width: 100% !important;
   overflow: hidden !important;
-  /* Height is applied inline by footer-responsive.js (designH * scale) */
-}
-
-#footer.footer-scaled > div.framer-5b4Eg,
-.framer-5pgh20-container.footer-scaled > div.framer-5b4Eg {
-  width: 1440px !important;
-  max-width: none !important;
-  height: 900px !important;
-  min-height: 900px !important;
-  overflow: hidden !important;
-  transform: scale(var(--footer-scale, 1)) !important;
-  -webkit-transform: scale(var(--footer-scale, 1)) !important;
-  transform-origin: top left !important;
-  -webkit-transform-origin: top left !important;
-  will-change: transform;
-}
-
-/* Cancel Framer's fixed 1420px mobile footer height when scaled */
-@media (max-width: 999.98px) {
-  .framer-hVDZ8 .framer-5pgh20-container.footer-scaled,
-  #footer.footer-scaled {
-    min-height: 0 !important;
-  }
 }
 
 /* Ensure physics container doesn't overflow */
@@ -730,9 +742,9 @@ canvas {
   min-height: 100%;
 }
 
-#footer:not(.footer-scaled) [data-framer-name="Physics DSK"],
-#footer:not(.footer-scaled) [data-framer-name="Physics DSK"] > div,
-#footer:not(.footer-scaled) [data-framer-name="Physics DSK"] > div[draggable="false"] {
+#footer:not(.footer-scaled):not(.footer-mobile) [data-framer-name="Physics DSK"],
+#footer:not(.footer-scaled):not(.footer-mobile) [data-framer-name="Physics DSK"] > div,
+#footer:not(.footer-scaled):not(.footer-mobile) [data-framer-name="Physics DSK"] > div[draggable="false"] {
   min-height: 100vh;
   min-height: -webkit-fill-available;
 }
@@ -805,7 +817,7 @@ canvas {
 
 /* Cross-browser viewport height fix for mobile browsers */
 @supports (-webkit-touch-callout: none) {
-  #footer:not(.footer-scaled) [data-framer-name="Physics DSK"] > div[draggable="false"] {
+  #footer:not(.footer-scaled):not(.footer-mobile) [data-framer-name="Physics DSK"] > div[draggable="false"] {
     min-height: -webkit-fill-available;
   }
 }

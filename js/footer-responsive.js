@@ -1,186 +1,186 @@
 /**
- * Scales the desktop footer to fit mobile / portrait tablet viewports
- * while preserving the same layout and physics coordinate space as desktop.
- * Desktop and landscape/wide screens are left unchanged.
+ * Footer responsive controller
+ * - Desktop / landscape: keep the current desktop footer as-is
+ * - Mobile / portrait tablets: use Framer's mobile footer variant (readable UI)
+ *   and expose a design→layout scale so physics can remap into the smaller stage
  */
 (function () {
   'use strict';
 
   var DESIGN_W = 1440;
   var DESIGN_H = 900;
-  var resizeTimer = null;
-  var lastScale = 1;
-  var lastShouldScale = null;
 
-  function shouldScaleFooter() {
-    var width = window.innerWidth || document.documentElement.clientWidth || 0;
-    // Site mobile breakpoint (Framer max-width: 999.98px)
-    if (width <= 999) {
-      return true;
-    }
-    // Vertical tablets: same desktop footer, scaled to the narrower portrait width
-    var portrait = false;
+  var VARIANT = {
+    desktop: 'framer-v-egs4sy',
+    tablet: 'framer-v-1mxjd72',
+    mobile: 'framer-v-1ft20dn',
+    large: 'framer-v-w2yl31'
+  };
+
+  var ALL_VARIANTS = [VARIANT.desktop, VARIANT.tablet, VARIANT.mobile, VARIANT.large];
+  var resizeTimer = null;
+  var lastMode = null;
+  var lastScale = 1;
+
+  function isPortrait() {
     try {
-      portrait = window.matchMedia('(orientation: portrait)').matches;
+      return window.matchMedia('(orientation: portrait)').matches;
     } catch (e) {
-      portrait = window.innerHeight >= window.innerWidth;
+      return window.innerHeight >= window.innerWidth;
     }
-    if (portrait && width <= 1366) {
-      return true;
+  }
+
+  function getMode() {
+    var width = window.innerWidth || document.documentElement.clientWidth || 0;
+    var portrait = isPortrait();
+
+    // Mobile + vertical tablets: mobile footer variant (readable stacked UI)
+    if (width <= 999 || (portrait && width <= 1366)) {
+      return 'mobile';
     }
-    return false;
+    // Mid landscape widths used by the site's 1000px breakpoint
+    if (width >= 1000 && width < 1440) {
+      return 'tablet';
+    }
+    if (width >= 1920) {
+      return 'large';
+    }
+    return 'desktop';
   }
 
   function getFooterParts() {
     var footer = document.getElementById('footer');
-    if (!footer) {
-      return null;
-    }
+    if (!footer) return null;
     var desktop = footer.querySelector('.framer-5b4Eg');
-    if (!desktop) {
-      return null;
-    }
-    return { footer: footer, desktop: desktop };
+    if (!desktop) return null;
+    return { footer: footer, root: desktop };
   }
 
-  function clearScale(parts) {
-    var footer = parts.footer;
-    var desktop = parts.desktop;
+  function setVariant(root, variantClass) {
+    ALL_VARIANTS.forEach(function (cls) {
+      root.classList.remove(cls);
+    });
+    root.classList.add(variantClass);
+    // Keep base egs4sy class (Framer uses it in compound selectors)
+    if (!root.classList.contains('framer-egs4sy')) {
+      root.classList.add('framer-egs4sy');
+    }
+  }
 
-    footer.classList.remove('footer-scaled');
+  function clearInlineScale(parts) {
+    var footer = parts.footer;
+    var root = parts.root;
+
+    footer.classList.remove('footer-scaled', 'footer-mobile');
     footer.style.height = '';
     footer.style.minHeight = '';
     footer.style.maxHeight = '';
     footer.style.removeProperty('--footer-scale');
     delete footer.dataset.footerScale;
+    delete footer.dataset.footerMode;
 
-    desktop.style.transform = '';
-    desktop.style.webkitTransform = '';
-    desktop.style.transformOrigin = '';
-    desktop.style.webkitTransformOrigin = '';
-    desktop.style.width = '';
-    desktop.style.height = '';
-    desktop.style.maxWidth = '';
-    desktop.style.minHeight = '';
-
-    window.__footerScale = 1;
-    if (lastScale !== 1 || lastShouldScale !== false) {
-      lastScale = 1;
-      lastShouldScale = false;
-      try {
-        window.dispatchEvent(new CustomEvent('footer-scale-change', { detail: { scale: 1 } }));
-      } catch (e) {
-        /* ignore */
-      }
-    }
+    root.style.transform = '';
+    root.style.webkitTransform = '';
+    root.style.transformOrigin = '';
+    root.style.webkitTransformOrigin = '';
+    root.style.width = '';
+    root.style.height = '';
+    root.style.maxWidth = '';
+    root.style.minHeight = '';
+    root.removeAttribute('data-framer-name');
   }
 
-  function applyScale(parts) {
-    var footer = parts.footer;
-    var desktop = parts.desktop;
+  function applyDesktopLike(parts, mode) {
+    clearInlineScale(parts);
+    var variant = mode === 'large' ? VARIANT.large : (mode === 'tablet' ? VARIANT.tablet : VARIANT.desktop);
+    setVariant(parts.root, variant);
+    parts.root.setAttribute('data-framer-name', mode === 'tablet' ? 'Tablet' : 'Desktop');
+    parts.footer.dataset.footerMode = mode;
+    parts.footer.dataset.footerScale = '1';
+    parts.footer.style.setProperty('--footer-scale', '1');
+    window.__footerScale = 1;
+    window.__footerMode = mode;
+  }
 
-    // Measure the page column width the footer must fit into
-    var availableWidth = footer.clientWidth;
-    if (!availableWidth) {
-      var pageCol = document.querySelector('.framer-hVDZ8.framer-72rtr7') || document.querySelector('.framer-hVDZ8');
-      if (pageCol && pageCol.clientWidth) {
-        availableWidth = pageCol.clientWidth;
-      }
-    }
-    if (!availableWidth) {
-      var parent = footer.parentElement;
-      availableWidth = (parent && parent.clientWidth) || window.innerWidth || DESIGN_W;
+  function applyMobile(parts) {
+    var footer = parts.footer;
+    var root = parts.root;
+
+    // Prefer Framer mobile variant for readable stacked chrome,
+    // while physics remaps into the fluid column width.
+    setVariant(root, VARIANT.mobile);
+    root.setAttribute('data-framer-name', 'Phone');
+
+    footer.classList.add('footer-mobile');
+    footer.classList.remove('footer-scaled');
+
+    var pageCol = document.querySelector('.framer-hVDZ8.framer-72rtr7') || document.querySelector('.framer-hVDZ8');
+    var availableWidth = (pageCol && pageCol.clientWidth) || footer.clientWidth || window.innerWidth || 390;
+    if (availableWidth > 900) {
+      // Safety for large portrait tablets: keep a comfortable column
+      availableWidth = Math.min(availableWidth, 768);
     }
 
     var scale = availableWidth / DESIGN_W;
-    if (!isFinite(scale) || scale <= 0) {
-      scale = 1;
-    }
-    // Never upscale past the design size
-    if (scale > 1) {
-      scale = 1;
-    }
+    if (!isFinite(scale) || scale <= 0) scale = 390 / DESIGN_W;
+    if (scale > 1) scale = 1;
 
-    var scaledHeight = Math.round(DESIGN_H * scale * 1000) / 1000;
-
-    footer.classList.add('footer-scaled');
-    footer.style.height = scaledHeight + 'px';
-    footer.style.minHeight = scaledHeight + 'px';
-    footer.style.maxHeight = scaledHeight + 'px';
+    // Fluid mobile stage: full column width, tall enough for stacked UI + physics play area
+    footer.style.height = '';
+    footer.style.maxHeight = '';
+    footer.style.minHeight = '';
     footer.dataset.footerScale = String(scale);
+    footer.dataset.footerMode = 'mobile';
     footer.style.setProperty('--footer-scale', String(scale));
 
-    desktop.style.boxSizing = 'border-box';
-    desktop.style.width = DESIGN_W + 'px';
-    desktop.style.maxWidth = 'none';
-    desktop.style.height = DESIGN_H + 'px';
-    desktop.style.minHeight = DESIGN_H + 'px';
-    desktop.style.transformOrigin = 'top left';
-    desktop.style.webkitTransformOrigin = 'top left';
-    // Transform is applied via CSS var(--footer-scale) for !important reliability
-    desktop.style.transform = '';
-    desktop.style.webkitTransform = '';
+    root.style.width = '100%';
+    root.style.maxWidth = '100%';
+    root.style.height = 'auto';
+    root.style.minHeight = Math.max(640, Math.round(DESIGN_H * Math.max(scale, 0.45))) + 'px';
+    root.style.transform = '';
+    root.style.webkitTransform = '';
 
     window.__footerScale = scale;
-
-    var scaleChanged = Math.abs(scale - lastScale) > 0.001;
-    var modeChanged = lastShouldScale !== true;
-    lastScale = scale;
-    lastShouldScale = true;
-
-    if (scaleChanged || modeChanged) {
-      try {
-        window.dispatchEvent(new CustomEvent('footer-scale-change', { detail: { scale: scale } }));
-      } catch (e) {
-        /* ignore */
-      }
-    }
+    window.__footerMode = 'mobile';
   }
 
   function updateFooterScale() {
     var parts = getFooterParts();
-    if (!parts) {
-      return;
+    if (!parts) return;
+
+    var mode = getMode();
+    if (mode === 'mobile') {
+      applyMobile(parts);
+    } else {
+      applyDesktopLike(parts, mode);
     }
 
-    if (shouldScaleFooter()) {
-      applyScale(parts);
-    } else {
-      clearScale(parts);
+    var scale = window.__footerScale || 1;
+    var modeChanged = lastMode !== mode;
+    var scaleChanged = Math.abs(scale - lastScale) > 0.001;
+    lastMode = mode;
+    lastScale = scale;
+
+    if (modeChanged || scaleChanged) {
+      try {
+        window.dispatchEvent(new CustomEvent('footer-scale-change', {
+          detail: { scale: scale, mode: mode }
+        }));
+      } catch (e) {
+        /* ignore */
+      }
     }
   }
 
   function scheduleUpdate() {
-    if (resizeTimer) {
-      clearTimeout(resizeTimer);
-    }
+    if (resizeTimer) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(updateFooterScale, 50);
-  }
-
-  function init() {
-    updateFooterScale();
-    enhanceFooterAccessibility();
-
-    window.addEventListener('resize', scheduleUpdate, { passive: true });
-    window.addEventListener('orientationchange', function () {
-      setTimeout(updateFooterScale, 120);
-    }, { passive: true });
-
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', scheduleUpdate, { passive: true });
-    }
-
-    // Re-run after late layout / Framer hydration
-    setTimeout(updateFooterScale, 100);
-    setTimeout(updateFooterScale, 500);
-    setTimeout(updateFooterScale, 1500);
   }
 
   function enhanceFooterAccessibility() {
     var footer = document.getElementById('footer');
     if (!footer) return;
 
-    // Convert non-navigating <a> chips into buttons so they are keyboard accessible
     var fakeLinks = footer.querySelectorAll('a:not([href])');
     Array.prototype.forEach.call(fakeLinks, function (el) {
       if (el.getAttribute('role') === 'button') return;
@@ -198,13 +198,30 @@
       });
     });
 
-    // Ensure real links expose an accessible name
     var realLinks = footer.querySelectorAll('a[href]');
     Array.prototype.forEach.call(realLinks, function (el) {
       if (el.getAttribute('aria-label')) return;
       var label = (el.textContent || '').replace(/\s+/g, ' ').trim();
       if (label) el.setAttribute('aria-label', label);
     });
+  }
+
+  function init() {
+    updateFooterScale();
+    enhanceFooterAccessibility();
+
+    window.addEventListener('resize', scheduleUpdate, { passive: true });
+    window.addEventListener('orientationchange', function () {
+      setTimeout(updateFooterScale, 120);
+    }, { passive: true });
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', scheduleUpdate, { passive: true });
+    }
+
+    setTimeout(updateFooterScale, 100);
+    setTimeout(updateFooterScale, 500);
+    setTimeout(updateFooterScale, 1500);
   }
 
   window.getFooterScale = function () {
@@ -214,11 +231,13 @@
     var footer = document.getElementById('footer');
     if (footer && footer.dataset.footerScale) {
       var parsed = parseFloat(footer.dataset.footerScale);
-      if (isFinite(parsed) && parsed > 0) {
-        return parsed;
-      }
+      if (isFinite(parsed) && parsed > 0) return parsed;
     }
     return 1;
+  };
+
+  window.getFooterMode = function () {
+    return window.__footerMode || 'desktop';
   };
 
   window.updateFooterScale = updateFooterScale;
