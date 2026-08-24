@@ -749,6 +749,34 @@ canvas {
   min-height: -webkit-fill-available;
 }
 
+/* Keep footer chrome readable above the physics playfield on mobile */
+#footer.footer-mobile .framer-17z41ix,
+#footer.footer-mobile .framer-1sabacs,
+#footer.footer-mobile .framer-1t5gmqs {
+  position: relative !important;
+  z-index: 20 !important;
+  pointer-events: auto !important;
+}
+
+#footer.footer-mobile .framer-17z41ix a,
+#footer.footer-mobile .framer-17z41ix [role="button"],
+#footer.footer-mobile .framer-1t5gmqs a {
+  position: relative;
+  z-index: 21;
+  pointer-events: auto !important;
+  font-size: max(14px, 1em);
+}
+
+#footer.footer-mobile [data-framer-name="Physics DSK"],
+#footer.footer-mobile [data-framer-name="Physics DSK"] > div {
+  z-index: 1 !important;
+}
+
+#footer.footer-mobile .physics-body,
+#footer.footer-mobile [id^="physics-body-footer"] {
+  z-index: 2 !important;
+}
+
 /* Physics body elements - Cross-browser compatible */
 .physics-body,
 [id^="physics-body-footer"] {
