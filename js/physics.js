@@ -40,6 +40,62 @@
     return safeQuerySelector('div[draggable="false"]', physicsContainer);
   }
 
+  function getFooterVisualScale() {
+    if (typeof window.getFooterScale === 'function') {
+      const s = window.getFooterScale();
+      if (typeof s === 'number' && isFinite(s) && s > 0) return s;
+    }
+    if (typeof window.__footerScale === 'number' && window.__footerScale > 0) {
+      return window.__footerScale;
+    }
+    return 1;
+  }
+
+  /**
+   * Layout (unscaled) metrics for physics math.
+   * CSS scale on the desktop footer is visual-only; offsetWidth stays at design size.
+   */
+  function getContainerMetrics(innerContainer) {
+    if (!innerContainer) return null;
+    let rect;
+    try {
+      rect = innerContainer.getBoundingClientRect();
+    } catch (error) {
+      return null;
+    }
+    if (!rect) return null;
+
+    const layoutWidth = innerContainer.offsetWidth || rect.width || 0;
+    const layoutHeight = innerContainer.offsetHeight || rect.height || 0;
+    if (layoutWidth <= 0 || layoutHeight <= 0) return null;
+
+    const scaleX = rect.width / layoutWidth;
+    const scaleY = rect.height / layoutHeight;
+
+    return {
+      rect: rect,
+      layoutWidth: layoutWidth,
+      layoutHeight: layoutHeight,
+      scaleX: scaleX > 0 ? scaleX : 1,
+      scaleY: scaleY > 0 ? scaleY : 1
+    };
+  }
+
+  function clientToLocal(clientX, clientY, metrics) {
+    return {
+      x: (clientX - metrics.rect.left) / metrics.scaleX,
+      y: (clientY - metrics.rect.top) / metrics.scaleY
+    };
+  }
+
+  function prefersReducedMotion() {
+    try {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function getPointerClientXY(e) {
     if (e.touches && e.touches.length > 0) {
       return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -110,23 +166,19 @@
     const innerContainer = item.dragInnerContainer || getPhysicsInnerContainer();
     if (!innerContainer) return;
 
-    let containerRect;
-    try {
-      containerRect = innerContainer.getBoundingClientRect();
-    } catch (error) {
-      return;
-    }
-    if (!containerRect || containerRect.width === 0 || containerRect.height === 0) return;
+    const metrics = getContainerMetrics(innerContainer);
+    if (!metrics) return;
 
-    const pointerX = clientX - containerRect.left;
-    const pointerY = clientY - containerRect.top;
+    const local = clientToLocal(clientX, clientY, metrics);
+    const pointerX = local.x;
+    const pointerY = local.y;
 
     const halfW = (item.width > 0 ? item.width : 50) / 2;
     const halfH = (item.height > 0 ? item.height : 50) / 2;
     const minX = halfW;
-    const maxX = Math.max(halfW, containerRect.width - halfW);
+    const maxX = Math.max(halfW, metrics.layoutWidth - halfW);
     const minY = halfH;
-    const maxY = Math.max(halfH, containerRect.height - halfH);
+    const maxY = Math.max(halfH, metrics.layoutHeight - halfH);
 
     const x = Math.max(minX, Math.min(maxX, pointerX + dragOffset.x));
     const y = Math.max(minY, Math.min(maxY, pointerY + dragOffset.y));
@@ -141,7 +193,7 @@
     mountDragToBody(item);
 
     const rotationDeg = (item.rotation || 0) * 180 / Math.PI;
-    const scale = getDragScale(item);
+    const scale = getDragScale(item) * getFooterVisualScale();
     item.el.style.position = 'fixed';
     item.el.style.left = clientX + 'px';
     item.el.style.top = clientY + 'px';
@@ -203,73 +255,58 @@
     }
     
     resizeTimeout = setTimeout(() => {
-      if (typeof safeQuerySelector === 'function' && typeof CONFIG !== 'undefined') {
-        const footer = safeQuerySelector(CONFIG.SELECTORS.FOOTER);
-        if (!footer) return;
+      if (typeof safeQuerySelector !== 'function' || typeof CONFIG === 'undefined') {
+        return;
+      }
+      const footer = safeQuerySelector(CONFIG.SELECTORS.FOOTER);
+      if (!footer) return;
+      
+      const physicsContainer = safeQuerySelector(CONFIG.SELECTORS.PHYSICS_CONTAINER, footer);
+      if (!physicsContainer) return;
+      
+      const innerContainer = safeQuerySelector('div[draggable="false"]', physicsContainer);
+      if (!innerContainer) return;
+      
+      // Force reflow to get accurate dimensions (cross-browser)
+      void innerContainer.offsetHeight;
+      
+      const metrics = getContainerMetrics(innerContainer);
+      if (!metrics) return;
+      
+      const newWidth = metrics.layoutWidth;
+      const newHeight = metrics.layoutHeight;
+      
+      // Only update if size actually changed (with small threshold to avoid unnecessary updates)
+      const widthDiff = Math.abs(newWidth - lastContainerSize.width);
+      const heightDiff = Math.abs(newHeight - lastContainerSize.height);
+      const threshold = 5; // 5px threshold
+      
+      if (widthDiff > threshold || heightDiff > threshold) {
+        lastContainerSize.width = newWidth;
+        lastContainerSize.height = newHeight;
         
-        const physicsContainer = safeQuerySelector(CONFIG.SELECTORS.PHYSICS_CONTAINER, footer);
-        if (!physicsContainer) return;
-        
-        const innerContainer = safeQuerySelector('div[draggable="false"]', physicsContainer);
-        if (!innerContainer) return;
-        
-        // Force reflow to get accurate dimensions (cross-browser)
-        void innerContainer.offsetHeight;
-        
-        // Safety check before getBoundingClientRect
-        let containerRect;
-        try {
-          containerRect = innerContainer.getBoundingClientRect();
-        } catch (error) {
-          console.warn('[PHYSICS] Error getting container bounds in handleResize:', error);
-          return;
-        }
-        
-        if (!containerRect) return;
-        
-        // Use viewport dimensions as fallback for better mobile support
-        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || containerRect.width;
-        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || containerRect.height;
-        
-        // Get actual container dimensions
-        const newWidth = containerRect.width || viewportWidth;
-        const newHeight = containerRect.height || viewportHeight;
-        
-        // Only update if size actually changed (with small threshold to avoid unnecessary updates)
-        const widthDiff = Math.abs(newWidth - lastContainerSize.width);
-        const heightDiff = Math.abs(newHeight - lastContainerSize.height);
-        const threshold = 5; // 5px threshold
-        
-        if (widthDiff > threshold || heightDiff > threshold) {
-          lastContainerSize.width = newWidth;
-          lastContainerSize.height = newHeight;
+        // Update element positions if container resized
+        // Recalculate positions to keep elements within bounds
+        items.forEach(item => {
+          // CRITICAL FIX: Check item, item.el, and item.el.style before accessing
+          if (!item || !item.el || item.dragging) return;
+          if (!item.el.style || typeof item.el.style !== 'object') return;
           
-          // Update element positions if container resized
-          // Recalculate positions to keep elements within bounds
-          items.forEach(item => {
-            // CRITICAL FIX: Check item, item.el, and item.el.style before accessing
-            if (!item || !item.el || item.dragging) return;
-            if (!item.el.style || typeof item.el.style !== 'object') return;
-            
-            const halfW = item.width / 2;
-            const halfH = item.height / 2;
-            
-            // Constrain to new container bounds
-            item.x = Math.max(halfW, Math.min(newWidth - halfW, item.x));
-            item.y = Math.max(halfH, Math.min(newHeight - halfH, item.y));
-            
-            // Update visual position immediately - double-check style exists
-            if (item.el && item.el.style) {
-              const rotationDeg = (item.rotation || 0) * 180 / Math.PI;
-              // Cross-browser transform support
-              item.el.style.transform = `translate3d(${item.x}px, ${item.y}px, 0) translate(-50%, -50%) rotate(${rotationDeg}deg) scale(1)`;
-              item.el.style.webkitTransform = item.el.style.transform; // Safari
-            }
-          });
+          const halfW = item.width / 2;
+          const halfH = item.height / 2;
           
-          if (CONFIG && CONFIG.DEV_MODE) {
-            console.log('[PHYSICS] Container resized:', newWidth, 'x', newHeight);
+          // Constrain to new container bounds (layout / design space)
+          item.x = Math.max(halfW, Math.min(newWidth - halfW, item.x));
+          item.y = Math.max(halfH, Math.min(newHeight - halfH, item.y));
+          
+          // Update visual position immediately - double-check style exists
+          if (item.el && item.el.style) {
+            applyPhysicsTransform(item, 1);
           }
+        });
+        
+        if (CONFIG && CONFIG.DEV_MODE) {
+          console.log('[PHYSICS] Container resized:', newWidth, 'x', newHeight);
         }
       }
     }, 200); // Slightly longer throttle for better mobile performance
@@ -400,6 +437,15 @@
   function setupPhysics() {
     if (setupDone && items.length > 0) return;
 
+    // Ensure footer scale is applied before measuring layout coordinates
+    if (typeof window.updateFooterScale === 'function') {
+      try {
+        window.updateFooterScale();
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
     // Safety checks for dependencies
     if (typeof safeQuerySelector !== 'function') {
       console.warn('[PHYSICS] safeQuerySelector not available');
@@ -487,21 +533,14 @@
         
         if (!rect || !style) return;
         
-        // Safety check before getBoundingClientRect
-        let containerRect;
-        try {
-          containerRect = innerContainer.getBoundingClientRect();
-        } catch (error) {
-          console.warn('[PHYSICS] Error getting container bounds in setupPhysics:', error);
-          return;
-        }
+        const metrics = getContainerMetrics(innerContainer);
+        if (!metrics) return;
         
-        if (!containerRect) return;
-        
-        // Always calculate center position from actual visual position
-        // This ensures consistency regardless of how the element was initially positioned
-        const x = rect.left + rect.width / 2 - containerRect.left;
-        const y = rect.top + rect.height / 2 - containerRect.top;
+        // Convert visual rect into layout/design coordinates (accounts for footer CSS scale)
+        const x = ((rect.left + rect.width / 2) - metrics.rect.left) / metrics.scaleX;
+        const y = ((rect.top + rect.height / 2) - metrics.rect.top) / metrics.scaleY;
+        const layoutWidth = rect.width / metrics.scaleX;
+        const layoutHeight = rect.height / metrics.scaleY;
         
         const transform = style.transform;
         let rotation = 0;
@@ -527,8 +566,8 @@
           y: y,
           vx: (Math.random() - 0.5) * 2,
           vy: (Math.random() - 0.5) * 2,
-          width: rect.width,
-          height: rect.height,
+          width: layoutWidth,
+          height: layoutHeight,
           rotation: rotation,
           angularVelocity: (Math.random() - 0.5) * 0.08,
           dragging: false,
@@ -554,9 +593,15 @@
         rect = el.getBoundingClientRect();
         
         // Ensure clickable area matches element size exactly (now matches SVG)
-        // Use the dimensions we set from SVG viewBox
-        const finalWidth = rect.width > 0 ? rect.width : parseFloat(el.style.width) || 100;
-        const finalHeight = rect.height > 0 ? rect.height : parseFloat(el.style.height) || 100;
+        // Use the dimensions we set from SVG viewBox (layout space)
+        const finalWidth = (rect.width > 0 ? rect.width / metrics.scaleX : null)
+          || parseFloat(el.style.width)
+          || layoutWidth
+          || 100;
+        const finalHeight = (rect.height > 0 ? rect.height / metrics.scaleY : null)
+          || parseFloat(el.style.height)
+          || layoutHeight
+          || 100;
         
         el.style.width = finalWidth + 'px';
         el.style.height = finalHeight + 'px';
@@ -646,16 +691,8 @@
 
     if (!innerContainer) return;
 
-    // Safety check before getBoundingClientRect
-    let containerRect;
-    try {
-      containerRect = innerContainer.getBoundingClientRect();
-    } catch (error) {
-      console.warn('[PHYSICS] Error getting container bounds in startDrag:', error);
-      return;
-    }
-    
-    if (!containerRect) return;
+    const metrics = getContainerMetrics(innerContainer);
+    if (!metrics) return;
     
     // Handle both mouse and touch events properly
     let clientX, clientY;
@@ -800,22 +837,14 @@
       }
 
     // Safety check before getBoundingClientRect
-    let containerRect;
-    try {
-      containerRect = innerContainer.getBoundingClientRect();
-    } catch (error) {
-      console.warn('[PHYSICS] Error getting container bounds:', error);
+    const metrics = getContainerMetrics(innerContainer);
+    if (!metrics) {
       scheduleNextAnimationFrame();
       return;
     }
     
-    if (!containerRect || containerRect.width === 0 || containerRect.height === 0) {
-      scheduleNextAnimationFrame();
-      return;
-    }
-    
-    const containerWidth = containerRect.width;
-    const containerHeight = containerRect.height;
+    const containerWidth = metrics.layoutWidth;
+    const containerHeight = metrics.layoutHeight;
     
     // Update last known container size for resize detection
     lastContainerSize.width = containerWidth;
@@ -834,6 +863,8 @@
       }
       return true;
     });
+
+    const reduceMotion = prefersReducedMotion();
 
     items.forEach(item => {
       // CRITICAL FIX: Check item, item.el, and item.el.style before accessing
@@ -859,12 +890,17 @@
       }
 
       // Physics simulation (gravity + fall after release)
-      if (CONFIG && CONFIG.PHYSICS) {
+      if (CONFIG && CONFIG.PHYSICS && !reduceMotion) {
         item.vy += CONFIG.PHYSICS.GRAVITY * deltaTime;
         
         // Apply friction
         item.vx *= Math.pow(CONFIG.PHYSICS.FRICTION, deltaTime);
         item.vy *= Math.pow(CONFIG.PHYSICS.FRICTION, deltaTime);
+      } else if (CONFIG && CONFIG.PHYSICS && reduceMotion) {
+        // Keep pieces settled for users who prefer reduced motion
+        item.vx = 0;
+        item.vy = 0;
+        if (item.angularVelocity !== undefined) item.angularVelocity = 0;
       }
 
       // Angular motion
@@ -1150,6 +1186,9 @@
     window.addEventListener('orientationchange', () => {
       // Delay to allow orientation change to complete
       setTimeout(handleResize, 100);
+    }, {passive: true});
+    window.addEventListener('footer-scale-change', function() {
+      setTimeout(handleResize, 30);
     }, {passive: true});
     
     // Visual Viewport: only run layout work when dimensions change (not on every scroll)

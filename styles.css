@@ -583,27 +583,85 @@ h1.framer-text {
   }
 }
 
+/* -------------------------------------------------------------------------
+   Global responsive + accessibility baselines
+   ------------------------------------------------------------------------- */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+img,
+video,
+svg,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+:focus-visible {
+  outline: 3px solid #556802;
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 100000;
+  padding: 10px 14px;
+  background: #3d2800;
+  color: #fff7e3;
+  text-decoration: none;
+  border-radius: 8px;
+  transform: translateY(-200%);
+  transition: transform 0.2s ease;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Footer styles - ensure it appears above logo when overlapping */
 #footer,
 .framer-5pgh20-container {
   position: relative;
   z-index: 10;
-  /* Cross-browser compatibility */
   -webkit-box-sizing: border-box;
   -moz-box-sizing: border-box;
   box-sizing: border-box;
   width: 100%;
   min-height: 100vh;
   min-height: -webkit-fill-available; /* iOS Safari fix */
-  /* Ensure footer works on all browsers */
   display: block;
   overflow: hidden;
-  /* Prevent horizontal scroll on mobile */
-  max-width: 100vw;
+  max-width: 100%;
   overflow-x: hidden;
 }
 
-/* Footer container responsive fixes */
+/* Desktop / landscape: fill the page column without breaking Framer layout */
 #footer > div,
 .framer-5pgh20-container > div {
   width: 100% !important;
@@ -611,11 +669,46 @@ h1.framer-text {
   overflow-x: hidden !important;
 }
 
+/*
+ * Mobile + portrait tablets: keep the DESKTOP footer composition,
+ * scaled to the column width (see js/footer-responsive.js).
+ * Do not use ad-hoc Physics DSK scale transforms — they break drag math.
+ */
+#footer.footer-scaled,
+.framer-5pgh20-container.footer-scaled {
+  min-height: 0 !important;
+  max-height: none !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  /* Height is applied inline by footer-responsive.js (designH * scale) */
+}
+
+#footer.footer-scaled > div.framer-5b4Eg,
+.framer-5pgh20-container.footer-scaled > div.framer-5b4Eg {
+  width: 1440px !important;
+  max-width: none !important;
+  height: 900px !important;
+  min-height: 900px !important;
+  overflow: hidden !important;
+  transform: scale(var(--footer-scale, 1)) !important;
+  -webkit-transform: scale(var(--footer-scale, 1)) !important;
+  transform-origin: top left !important;
+  -webkit-transform-origin: top left !important;
+  will-change: transform;
+}
+
+/* Cancel Framer's fixed 1420px mobile footer height when scaled */
+@media (max-width: 999.98px) {
+  .framer-hVDZ8 .framer-5pgh20-container.footer-scaled,
+  #footer.footer-scaled {
+    min-height: 0 !important;
+  }
+}
+
 /* Ensure physics container doesn't overflow */
 [data-framer-name="Physics DSK"] {
   max-width: 100%;
   overflow: hidden;
-  /* Cross-browser width fix */
   width: 100%;
   box-sizing: border-box;
   -webkit-box-sizing: border-box;
@@ -631,13 +724,17 @@ h1.framer-text {
   height: 100%;
   width: 100%;
   pointer-events: auto;
-  /* Cross-browser compatibility */
   -webkit-box-sizing: border-box;
   -moz-box-sizing: border-box;
   box-sizing: border-box;
-  /* Ensure container adapts to viewport */
+  min-height: 100%;
+}
+
+#footer:not(.footer-scaled) [data-framer-name="Physics DSK"],
+#footer:not(.footer-scaled) [data-framer-name="Physics DSK"] > div,
+#footer:not(.footer-scaled) [data-framer-name="Physics DSK"] > div[draggable="false"] {
   min-height: 100vh;
-  min-height: -webkit-fill-available; /* iOS Safari fix */
+  min-height: -webkit-fill-available;
 }
 
 /* Physics body elements - Cross-browser compatible */
@@ -645,8 +742,8 @@ h1.framer-text {
 [id^="physics-body-footer"] {
   position: absolute;
   cursor: grab;
-  cursor: -webkit-grab; /* Safari */
-  cursor: -moz-grab; /* Firefox */
+  cursor: -webkit-grab;
+  cursor: -moz-grab;
   pointer-events: auto;
   user-select: none;
   -webkit-user-select: none;
@@ -655,21 +752,15 @@ h1.framer-text {
   touch-action: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
-  -moz-tap-highlight-color: transparent;
   will-change: transform;
-  -webkit-will-change: transform;
   transform-origin: center center;
   -webkit-transform-origin: center center;
   -moz-transform-origin: center center;
   -ms-transform-origin: center center;
-  /* Ensure elements are interactive on all devices */
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-  /* Cross-browser transform support */
-  -webkit-transform: translateZ(0); /* Force hardware acceleration */
+  -webkit-transform: translateZ(0);
   -moz-transform: translateZ(0);
   -ms-transform: translateZ(0);
   transform: translateZ(0);
-  /* Backface visibility for performance */
   -webkit-backface-visibility: hidden;
   -moz-backface-visibility: hidden;
   -ms-backface-visibility: hidden;
@@ -679,8 +770,8 @@ h1.framer-text {
 .physics-body:active,
 [id^="physics-body-footer"]:active {
   cursor: grabbing;
-  cursor: -webkit-grabbing; /* Safari */
-  cursor: -moz-grabbing; /* Firefox */
+  cursor: -webkit-grabbing;
+  cursor: -moz-grabbing;
 }
 
 /* Block pointer events on children of physics bodies */
@@ -689,54 +780,18 @@ h1.framer-text {
   pointer-events: none;
 }
 
-/* Responsive adjustments for physics elements - Mobile */
-@media (max-width: 768px) {
+/* Touch: keep drag reliable; do not allow pan-y to steal gestures */
+@media (max-width: 1024px) {
   .physics-body,
   [id^="physics-body-footer"] {
-    /* Ensure touch targets are large enough on mobile */
     min-width: 44px;
     min-height: 44px;
-    /* Better touch handling on mobile */
-    -webkit-touch-callout: none;
-    touch-action: pan-y pinch-zoom;
-  }
-  
-  /* Scale down physics elements on mobile for better fit */
-  [data-framer-name="Physics DSK"] {
-    transform: scale(0.9);
-    -webkit-transform: scale(0.9);
-    transform-origin: center center;
-  }
-}
-
-/* Tablet adjustments */
-@media (min-width: 769px) and (max-width: 1024px) {
-  [data-framer-name="Physics DSK"] {
-    transform: scale(0.95);
-    -webkit-transform: scale(0.95);
-    transform-origin: center center;
-  }
-}
-
-/* Small mobile devices */
-@media (max-width: 480px) {
-  .physics-body,
-  [id^="physics-body-footer"] {
-    min-width: 40px;
-    min-height: 40px;
-  }
-  
-  [data-framer-name="Physics DSK"] {
-    transform: scale(0.85);
-    -webkit-transform: scale(0.85);
-  }
-}
-
-/* Very small screens */
-@media (max-width: 360px) {
-  [data-framer-name="Physics DSK"] {
-    transform: scale(0.8);
-    -webkit-transform: scale(0.8);
+    touch-action: none;
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    user-drag: none;
   }
 }
 
@@ -748,30 +803,9 @@ h1.framer-text {
   }
 }
 
-/* Prevent text selection during drag on mobile */
-@media (max-width: 1024px) {
-  .physics-body,
-  [id^="physics-body-footer"] {
-    -webkit-user-drag: none;
-    -khtml-user-drag: none;
-    -moz-user-drag: none;
-    -o-user-drag: none;
-    user-drag: none;
-  }
-}
-
-/* Landscape orientation adjustments */
-@media (max-width: 1024px) and (orientation: landscape) {
-  [data-framer-name="Physics DSK"] {
-    transform: scale(0.9);
-    -webkit-transform: scale(0.9);
-  }
-}
-
 /* Cross-browser viewport height fix for mobile browsers */
 @supports (-webkit-touch-callout: none) {
-  /* iOS Safari */
-  [data-framer-name="Physics DSK"] > div[draggable="false"] {
+  #footer:not(.footer-scaled) [data-framer-name="Physics DSK"] > div[draggable="false"] {
     min-height: -webkit-fill-available;
   }
 }
@@ -789,5 +823,13 @@ h1.framer-text {
   .physics-body,
   [id^="physics-body-footer"] {
     -ms-touch-action: none;
+  }
+}
+
+/* Readable footer link targets on small screens */
+@media (max-width: 999.98px) {
+  #footer a,
+  #footer [role="link"] {
+    min-height: 44px;
   }
 }
