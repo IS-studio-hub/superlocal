@@ -773,13 +773,30 @@ canvas {
   touch-action: none;
   min-height: 100% !important;
   height: 100% !important;
+  z-index: 5 !important;
 }
 
 #footer.footer-scaled .physics-body,
 #footer.footer-scaled [id^="physics-body-footer"] {
   pointer-events: auto !important;
   touch-action: none !important;
-  z-index: 3;
+  z-index: 6 !important;
+}
+
+/* Let pointer events pass through chrome chrome padding to physics; keep links clickable */
+#footer.footer-scaled .framer-17z41ix,
+#footer.footer-scaled .framer-1sabacs,
+#footer.footer-scaled .framer-1t5gmqs {
+  position: relative;
+  z-index: 7;
+  pointer-events: none !important;
+}
+
+#footer.footer-scaled .framer-17z41ix a,
+#footer.footer-scaled .framer-17z41ix [role="button"],
+#footer.footer-scaled .framer-1t5gmqs a,
+#footer.footer-scaled .framer-1sabacs a {
+  pointer-events: auto !important;
 }
 
 /* Physics body elements - Cross-browser compatible */
