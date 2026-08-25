@@ -800,6 +800,7 @@
         });
 
         el.removeAttribute('draggable');
+        el.setAttribute('data-lenis-prevent', 'true');
 
         // Add event listeners (pointerdown preferred so setPointerCapture keeps drag glued to cursor)
         const dragStart = (e) => startDrag(e, item);
@@ -814,6 +815,44 @@
         // Continue with next element
       }
     });
+
+    // Delegated hit-testing on the physics stage (more reliable under CSS scale + overlays)
+    if (!innerContainer.dataset.physicsDelegate) {
+      innerContainer.dataset.physicsDelegate = 'true';
+      innerContainer.setAttribute('data-lenis-prevent', 'true');
+      const delegateStart = function(e) {
+        if (dragging) return;
+        if (typeof e.button === 'number' && e.button !== 0) return;
+        const pt = getPointerClientXY(e);
+        // Prefer topmost physics body under the pointer
+        let hit = null;
+        let hitArea = -1;
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i];
+          if (!it || !it.el) continue;
+          let r;
+          try { r = it.el.getBoundingClientRect(); } catch (err) { continue; }
+          if (!r || r.width < 2 || r.height < 2) continue;
+          if (pt.x >= r.left && pt.x <= r.right && pt.y >= r.top && pt.y <= r.bottom) {
+            const area = r.width * r.height;
+            // Prefer smaller (topmost/more specific) targets when overlapping
+            if (hitArea < 0 || area < hitArea) {
+              hit = it;
+              hitArea = area;
+            }
+          }
+        }
+        if (hit) {
+          startDrag(e, hit);
+        }
+      };
+      if (typeof PointerEvent !== 'undefined') {
+        innerContainer.addEventListener('pointerdown', delegateStart, true);
+      } else {
+        innerContainer.addEventListener('mousedown', delegateStart, true);
+        innerContainer.addEventListener('touchstart', delegateStart, { passive: false, capture: true });
+      }
+    }
 
     if (CONFIG && CONFIG.DEV_MODE) console.log('[PHYSICS] Setup complete!', items.length, 'items');
     setupDone = true;
@@ -891,7 +930,10 @@
     }
     
     if (!elementRect || elementRect.width === 0 || elementRect.height === 0) {
-      return;
+      // Under some mobile/scale timing, the first rect can be 0 — retry once from layout size
+      const fallbackW = item.width || parseFloat(item.el.style.width) || 0;
+      const fallbackH = item.height || parseFloat(item.el.style.height) || 0;
+      if (fallbackW < 2 || fallbackH < 2) return;
     }
 
     // Clear Framer top/left before measuring — they fight translate3d() and push the shape away from the cursor
@@ -899,6 +941,9 @@
       item.el.style.top = '';
       item.el.style.left = '';
     }
+
+    // Stop page scroll / Lenis while dragging footer shapes
+    try { e.stopImmediatePropagation(); } catch (err) { /* ignore */ }
 
     dragging = item;
     item.dragging = true;
