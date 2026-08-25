@@ -72,7 +72,142 @@
     setupPhysics();
   }
 
-  var lastPhysicsMode = null;
+  let lastPhysicsMode = null;
+  /** Saved markup of physics bodies before Framer hydration can wipe them on mobile */
+  let physicsMarkupSnapshot = null;
+  let physicsObserver = null;
+  let restoreTimer = null;
+  let restoringPhysicsMarkup = false;
+
+  function getPhysicsInner(footer) {
+    const root = footer || (typeof safeQuerySelector === 'function' && typeof CONFIG !== 'undefined'
+      ? safeQuerySelector(CONFIG.SELECTORS.FOOTER)
+      : document.getElementById('footer'));
+    if (!root) return null;
+    const physicsContainer = typeof safeQuerySelector === 'function' && typeof CONFIG !== 'undefined'
+      ? safeQuerySelector(CONFIG.SELECTORS.PHYSICS_CONTAINER, root)
+      : root.querySelector('[data-framer-name="Physics DSK"]');
+    if (!physicsContainer) return null;
+    return physicsContainer.querySelector('div[draggable="false"]') || physicsContainer.firstElementChild;
+  }
+
+  function collectPhysicsElements(footer, innerContainer) {
+    const byId = Array.from((footer || document).querySelectorAll('[id^="physics-body-footer"]'));
+    const byClass = innerContainer
+      ? Array.from(innerContainer.querySelectorAll('.physics-body'))
+      : [];
+    const byGeneric = innerContainer
+      ? Array.from(innerContainer.querySelectorAll('#physics-body'))
+      : [];
+    // Absolute-positioned direct children as last resort (Framer may strip our ids)
+    const byChildren = [];
+    if (innerContainer) {
+      Array.from(innerContainer.children).forEach(function(child) {
+        if (!child || child.nodeType !== 1) return;
+        const style = child.style;
+        const pos = style && style.position;
+        const framerName = child.getAttribute('data-framer-name') || child.querySelector?.('[data-framer-name]')?.getAttribute('data-framer-name');
+        if (pos === 'absolute' || child.classList.contains('physics-body') || framerName) {
+          byChildren.push(child);
+        }
+      });
+    }
+    return Array.from(new Set([].concat(byId, byClass, byGeneric, byChildren)));
+  }
+
+  function snapshotPhysicsMarkup() {
+    try {
+      if (typeof window.__physicsMarkupSnapshot === 'string' && window.__physicsMarkupSnapshot.length > 100) {
+        physicsMarkupSnapshot = window.__physicsMarkupSnapshot;
+      }
+      const inner = getPhysicsInner();
+      if (!inner) return;
+      const bodies = collectPhysicsElements(document.getElementById('footer'), inner);
+      if (bodies.length > 0) {
+        physicsMarkupSnapshot = inner.innerHTML;
+        window.__physicsMarkupSnapshot = physicsMarkupSnapshot;
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  function ensurePhysicsMarkup() {
+    if (restoringPhysicsMarkup) return false;
+    const footer = document.getElementById('footer');
+    if (!footer) return false;
+    let physicsContainer = footer.querySelector('[data-framer-name="Physics DSK"]');
+    if (!physicsContainer) {
+      // Framer may have removed the whole physics layer — recreate a host
+      const host = footer.querySelector('.framer-5b4Eg') || footer.firstElementChild;
+      if (!host || !physicsMarkupSnapshot) return false;
+      restoringPhysicsMarkup = true;
+      try {
+        physicsContainer = document.createElement('div');
+        physicsContainer.className = 'framer-sfkft4-container';
+        physicsContainer.setAttribute('data-framer-name', 'Physics DSK');
+        physicsContainer.setAttribute('name', 'Physics DSK');
+        physicsContainer.setAttribute('aria-hidden', 'true');
+        physicsContainer.style.cssText = 'opacity:1;z-index:2;position:absolute;inset:0;';
+        const wrap = document.createElement('div');
+        wrap.setAttribute('draggable', 'false');
+        wrap.style.cssText = 'height:100%;width:100%;overflow:visible;pointer-events:auto;position:relative;';
+        wrap.innerHTML = physicsMarkupSnapshot;
+        physicsContainer.appendChild(wrap);
+        host.insertBefore(physicsContainer, host.firstChild);
+      } finally {
+        restoringPhysicsMarkup = false;
+      }
+      return true;
+    }
+
+    let inner = physicsContainer.querySelector('div[draggable="false"]');
+    if (!inner) {
+      restoringPhysicsMarkup = true;
+      try {
+        inner = document.createElement('div');
+        inner.setAttribute('draggable', 'false');
+        inner.style.cssText = 'height:100%;width:100%;overflow:visible;pointer-events:auto;position:relative;';
+        physicsContainer.appendChild(inner);
+      } finally {
+        restoringPhysicsMarkup = false;
+      }
+    }
+
+    const bodies = collectPhysicsElements(footer, inner);
+    if (bodies.length === 0 && physicsMarkupSnapshot) {
+      restoringPhysicsMarkup = true;
+      try {
+        inner.innerHTML = physicsMarkupSnapshot;
+      } finally {
+        restoringPhysicsMarkup = false;
+      }
+      return true;
+    }
+    return bodies.length > 0;
+  }
+
+  function watchPhysicsMarkup() {
+    const footer = document.getElementById('footer');
+    if (!footer || physicsObserver || typeof MutationObserver === 'undefined') return;
+    physicsObserver = new MutationObserver(function() {
+      if (restoringPhysicsMarkup) return;
+      if (restoreTimer) clearTimeout(restoreTimer);
+      restoreTimer = setTimeout(function() {
+        if (restoringPhysicsMarkup) return;
+        snapshotPhysicsMarkup();
+        const restored = ensurePhysicsMarkup();
+        const inner = getPhysicsInner(footer);
+        const count = inner ? collectPhysicsElements(footer, inner).length : 0;
+        if (restored || (count > 0 && items.length === 0)) {
+          setupDone = false;
+          items = [];
+          setupPhysics();
+        }
+      }, 80);
+    });
+    physicsObserver.observe(footer, { childList: true, subtree: true });
+  }
 
   function getFooterVisualScale() {
     if (typeof window.getFooterScale === 'function') {
@@ -516,10 +651,12 @@
     innerContainer.style.height = '100%';
     innerContainer.style.width = '100%';
 
-    // Find elements by ID pattern
-    const footerElements = Array.from(footer.querySelectorAll('[id^="physics-body-footer"]'));
-    const genericElements = Array.from(innerContainer.querySelectorAll('#physics-body'));
-    const allElements = Array.from(new Set([...footerElements, ...genericElements]));
+    // Snapshot early, restore if Framer hydration wiped mobile physics bodies
+    snapshotPhysicsMarkup();
+    ensurePhysicsMarkup();
+
+    // Find physics targets (ids, class, or absolute children)
+    const allElements = collectPhysicsElements(footer, innerContainer);
     
     // Fix SVG container sizes BEFORE processing physics
     fixSVGContainerSizes(allElements);
@@ -1255,35 +1392,55 @@
     console.warn('[PHYSICS] Error adding event listeners:', error);
   }
 
+  // Snapshot physics markup ASAP (before async Framer hydration can wipe it on mobile)
+  function bootPhysicsGuards() {
+    snapshotPhysicsMarkup();
+    watchPhysicsMarkup();
+    ensurePhysicsMarkup();
+    setupPhysics();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      snapshotPhysicsMarkup();
+      watchPhysicsMarkup();
+    });
+  } else {
+    snapshotPhysicsMarkup();
+    watchPhysicsMarkup();
+  }
+
   // Register physics setup with safety checks
   try {
     if (typeof initManager !== 'undefined' && initManager) {
       if (typeof initManager.registerCritical === 'function') {
-        initManager.registerCritical(setupPhysics, 'Footer Physics Setup');
+        initManager.registerCritical(bootPhysicsGuards, 'Footer Physics Setup');
       }
       if (typeof initManager.registerDeferred === 'function' && CONFIG && CONFIG.RETRY) {
-        initManager.registerDeferred(setupPhysics, CONFIG.RETRY.SHORT, 'Footer Physics (deferred 1)');
-        initManager.registerDeferred(setupPhysics, CONFIG.RETRY.MEDIUM, 'Footer Physics (deferred 2)');
-        initManager.registerDeferred(setupPhysics, CONFIG.RETRY.LONG, 'Footer Physics (deferred 3)');
-        initManager.registerDeferred(setupPhysics, CONFIG.RETRY.VERY_LONG, 'Footer Physics (deferred 4)');
-        initManager.registerDeferred(setupPhysics, CONFIG.RETRY.EXTRA_LONG, 'Footer Physics (deferred 5)');
-        initManager.registerDeferred(setupPhysics, CONFIG.RETRY.MAX, 'Footer Physics (deferred 6)');
+        initManager.registerDeferred(bootPhysicsGuards, CONFIG.RETRY.SHORT, 'Footer Physics (deferred 1)');
+        initManager.registerDeferred(bootPhysicsGuards, CONFIG.RETRY.MEDIUM, 'Footer Physics (deferred 2)');
+        initManager.registerDeferred(bootPhysicsGuards, CONFIG.RETRY.LONG, 'Footer Physics (deferred 3)');
+        initManager.registerDeferred(bootPhysicsGuards, CONFIG.RETRY.VERY_LONG, 'Footer Physics (deferred 4)');
+        initManager.registerDeferred(bootPhysicsGuards, CONFIG.RETRY.EXTRA_LONG, 'Footer Physics (deferred 5)');
+        initManager.registerDeferred(bootPhysicsGuards, CONFIG.RETRY.MAX, 'Footer Physics (deferred 6)');
       }
     }
   } catch (error) {
     console.warn('[PHYSICS] Error registering with initManager:', error);
     // Fallback: try to setup when DOM is ready
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', setupPhysics);
+      document.addEventListener('DOMContentLoaded', bootPhysicsGuards);
     } else {
-      setupPhysics();
+      bootPhysicsGuards();
     }
   }
 
   // Fallback initialization
   if (typeof onWindowLoad === 'function') {
     onWindowLoad(() => {
-      if (!setupDone) {
+      snapshotPhysicsMarkup();
+      ensurePhysicsMarkup();
+      if (!setupDone || items.length === 0) {
         setupPhysics();
       }
     });
@@ -1291,7 +1448,9 @@
     // Fallback if onWindowLoad is not available
     if (window.addEventListener) {
       window.addEventListener('load', () => {
-        if (!setupDone) {
+        snapshotPhysicsMarkup();
+        ensurePhysicsMarkup();
+        if (!setupDone || items.length === 0) {
           setupPhysics();
         }
       });
@@ -1301,6 +1460,7 @@
   // Public API
   window.footerPhysics = {
     enableDragAndDrop: function() {
+      ensurePhysicsMarkup();
       setupPhysics();
     },
     getItems: function() {
@@ -1310,6 +1470,8 @@
       return dragging !== null;
     },
     cancelDrag: cancelDrag,
+    ensureMarkup: ensurePhysicsMarkup,
+    snapshotMarkup: snapshotPhysicsMarkup,
     fixSVGSizes: function() {
       // Find all physics-body elements and fix their SVG container sizes
       const footer = typeof safeQuerySelector === 'function' && typeof CONFIG !== 'undefined' 
@@ -1325,14 +1487,11 @@
       const innerContainer = physicsContainer.querySelector('div[draggable="false"]');
       if (!innerContainer) return;
       
-      const footerElements = Array.from(footer.querySelectorAll('[id^="physics-body-footer"]'));
-      const genericElements = Array.from(innerContainer.querySelectorAll('#physics-body'));
-      const allElements = Array.from(new Set([...footerElements, ...genericElements]));
+      const allElements = collectPhysicsElements(footer, innerContainer);
       
       fixSVGContainerSizes(allElements);
     }
   };
 
 })();
-
 

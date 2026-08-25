@@ -101,9 +101,9 @@
 
     footer.classList.add('footer-scaled');
     footer.classList.remove('footer-mobile');
-    footer.style.height = scaledHeight + 'px';
-    footer.style.minHeight = scaledHeight + 'px';
-    footer.style.maxHeight = scaledHeight + 'px';
+    footer.style.setProperty('height', scaledHeight + 'px', 'important');
+    footer.style.setProperty('min-height', scaledHeight + 'px', 'important');
+    footer.style.setProperty('max-height', scaledHeight + 'px', 'important');
     footer.dataset.footerScale = String(scale);
     footer.dataset.footerMode = 'scaled';
     footer.style.setProperty('--footer-scale', String(scale));

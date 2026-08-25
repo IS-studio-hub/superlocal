@@ -71,7 +71,7 @@
 
   <script src="js/footer-responsive.js"></script>
 
-  <script src="js/physics.js?v=11"></script>
+  <script src="js/physics.js?v=12"></script>
 
   
 
@@ -7004,8 +7004,9 @@
 
     
 
-    // Auto-refresh on breakpoint changes
+    // Auto-refresh on breakpoint changes (disabled: reloads wipe footer physics on mobile)
     (function() {
+      return; // keep desktop/mobile footer physics stable without full reload
       // Define breakpoints (in pixels)
       const breakpoints = [360, 480, 768, 992, 1200, 1400];
       
@@ -7117,6 +7118,25 @@
 
 
 <!-- Footer component -->
+<script>
+(function(){
+  function snap(){
+    try{
+      var f=document.getElementById('footer');
+      if(!f)return;
+      var inner=f.querySelector('[data-framer-name="Physics DSK"] div[draggable="false"]');
+      if(inner && inner.querySelector('[id^="physics-body-footer"], .physics-body')){
+        window.__physicsMarkupSnapshot = inner.innerHTML;
+      }
+    }catch(e){}
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', snap);
+  else snap();
+  setTimeout(snap,0);
+  setTimeout(snap,50);
+})();
+</script>
+
 <div class="framer-5pgh20-container" id="footer" role="contentinfo" aria-label="Pie de página">
 <div class="framer-5b4Eg framer-egs4sy framer-v-egs4sy" data-framer-name="Desktop" style="background-color: rgb(61, 40, 0); height: 100%; width: 100%; opacity: 1;"> <div class="framer-sfkft4-container" data-framer-name="Physics DSK" name="Physics DSK" aria-hidden="true" style="opacity: 1;"> <div draggable="false" style="height: 100%; width: 100%; overflow: visible; pointer-events: auto; position: relative;"> <div id="physics-body-footer-1" class="physics-body" draggable="false" style="position: absolute; visibility: visible; top: 278.208px; left: 178px; transform: translate(-50%, -50%) rotate(0rad) translate(50%, 50%);"> <div class="framer-kyj9vk" data-framer-name="Shape Blue circ" style="opacity: 1;"> <div data-framer-component-type="SVG" data-framer-name="Layer_3" parentsize="0" _constraints="[object Object]" rotation="0" shadows="" class="framer-s554t7" aria-hidden="true" style="image-rendering: pixelated; flex-shrink: 0; fill: rgb(0, 0, 0); color: rgb(0, 0, 0); opacity: 1;"> <div class="svgContainer" style="width: 100%; height: auto; aspect-ratio: inherit;"> <svg style="width: 100%; height: auto;" viewBox="0 0 271 271" preserveAspectRatio="none" data-size-fixed="true"> <use href="#svg839572838_1226"> </use> </svg> </div> </div> </div> </div> <div id="physics-body-footer-2" class="physics-body" draggable="false" style="position: absolute; visibility: visible; top: 763.483px; left: 779.957px; transform: translate(-50%, -50%) rotate(-0.000267931rad) translate(50%, 50%);"> <div class="framer-50ys18" data-framer-name="uruguay" style="opacity: 1;"> <div data-framer-component-type="SVG" data-framer-name="URUGUAY" parentsize="0" _constraints="[object Object]" rotation="0" shadows="" class="framer-7v36ob" aria-hidden="true" style="image-rendering: pixelated; flex-shrink: 0; fill: rgb(0, 0, 0); color: rgb(0, 0, 0); opacity: 1;"> <div class="svgContainer" style="width: 100%; height: 100%; aspect-ratio: inherit;"> <svg style="width:100%;height:100%;" viewBox="0 0 567 93" preserveAspectRatio="none" width="100%" height="100%"> <use href="#svg206057619_3567">
 </use> </svg> </div></div></div>
