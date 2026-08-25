@@ -1,51 +1,27 @@
 /**
- * Footer responsive controller
- * - Desktop / landscape: keep the current desktop footer as-is
- * - Mobile / portrait tablets: use Framer's mobile footer variant (readable UI)
- *   and expose a design→layout scale so physics can remap into the smaller stage
+ * Scales the desktop footer to fit mobile / portrait tablet viewports.
+ * Physics keeps the same 1440×900 coordinate space as desktop; only the
+ * visual presentation is scaled. Desktop and landscape stay unchanged.
  */
 (function () {
   'use strict';
 
   var DESIGN_W = 1440;
   var DESIGN_H = 900;
-
-  var VARIANT = {
-    desktop: 'framer-v-egs4sy',
-    tablet: 'framer-v-1mxjd72',
-    mobile: 'framer-v-1ft20dn',
-    large: 'framer-v-w2yl31'
-  };
-
-  var ALL_VARIANTS = [VARIANT.desktop, VARIANT.tablet, VARIANT.mobile, VARIANT.large];
   var resizeTimer = null;
-  var lastMode = null;
   var lastScale = 1;
+  var lastShouldScale = null;
 
-  function isPortrait() {
-    try {
-      return window.matchMedia('(orientation: portrait)').matches;
-    } catch (e) {
-      return window.innerHeight >= window.innerWidth;
-    }
-  }
-
-  function getMode() {
+  function shouldScaleFooter() {
     var width = window.innerWidth || document.documentElement.clientWidth || 0;
-    var portrait = isPortrait();
-
-    // Mobile + vertical tablets: mobile footer variant (readable stacked UI)
-    if (width <= 999 || (portrait && width <= 1366)) {
-      return 'mobile';
+    if (width <= 999) return true;
+    var portrait = false;
+    try {
+      portrait = window.matchMedia('(orientation: portrait)').matches;
+    } catch (e) {
+      portrait = window.innerHeight >= window.innerWidth;
     }
-    // Mid landscape widths used by the site's 1000px breakpoint
-    if (width >= 1000 && width < 1440) {
-      return 'tablet';
-    }
-    if (width >= 1920) {
-      return 'large';
-    }
-    return 'desktop';
+    return portrait && width <= 1366;
   }
 
   function getFooterParts() {
@@ -53,122 +29,121 @@
     if (!footer) return null;
     var desktop = footer.querySelector('.framer-5b4Eg');
     if (!desktop) return null;
-    return { footer: footer, root: desktop };
+    return { footer: footer, desktop: desktop };
   }
 
-  function setVariant(root, variantClass) {
-    ALL_VARIANTS.forEach(function (cls) {
-      root.classList.remove(cls);
-    });
-    root.classList.add(variantClass);
-    // Keep base egs4sy class (Framer uses it in compound selectors)
-    if (!root.classList.contains('framer-egs4sy')) {
-      root.classList.add('framer-egs4sy');
-    }
-  }
-
-  function clearInlineScale(parts) {
+  function clearScale(parts) {
     var footer = parts.footer;
-    var root = parts.root;
+    var desktop = parts.desktop;
 
     footer.classList.remove('footer-scaled', 'footer-mobile');
     footer.style.height = '';
     footer.style.minHeight = '';
     footer.style.maxHeight = '';
     footer.style.removeProperty('--footer-scale');
+    footer.style.removeProperty('--footer-scaled-height');
     delete footer.dataset.footerScale;
     delete footer.dataset.footerMode;
 
-    root.style.transform = '';
-    root.style.webkitTransform = '';
-    root.style.transformOrigin = '';
-    root.style.webkitTransformOrigin = '';
-    root.style.width = '';
-    root.style.height = '';
-    root.style.maxWidth = '';
-    root.style.minHeight = '';
-    root.removeAttribute('data-framer-name');
-  }
+    desktop.style.transform = '';
+    desktop.style.webkitTransform = '';
+    desktop.style.transformOrigin = '';
+    desktop.style.webkitTransformOrigin = '';
+    desktop.style.width = '';
+    desktop.style.height = '';
+    desktop.style.maxWidth = '';
+    desktop.style.minHeight = '';
 
-  function applyDesktopLike(parts, mode) {
-    clearInlineScale(parts);
-    var variant = mode === 'large' ? VARIANT.large : (mode === 'tablet' ? VARIANT.tablet : VARIANT.desktop);
-    setVariant(parts.root, variant);
-    parts.root.setAttribute('data-framer-name', mode === 'tablet' ? 'Tablet' : 'Desktop');
-    parts.footer.dataset.footerMode = mode;
-    parts.footer.dataset.footerScale = '1';
-    parts.footer.style.setProperty('--footer-scale', '1');
+    // Keep desktop variant on wide screens
+    desktop.classList.remove('framer-v-1ft20dn', 'framer-v-1mxjd72', 'framer-v-w2yl31');
+    if (!desktop.classList.contains('framer-v-egs4sy')) {
+      desktop.classList.add('framer-v-egs4sy');
+    }
+    desktop.setAttribute('data-framer-name', 'Desktop');
+
     window.__footerScale = 1;
-    window.__footerMode = mode;
+    window.__footerMode = 'desktop';
+
+    if (lastScale !== 1 || lastShouldScale !== false) {
+      lastScale = 1;
+      lastShouldScale = false;
+      try {
+        window.dispatchEvent(new CustomEvent('footer-scale-change', {
+          detail: { scale: 1, mode: 'desktop' }
+        }));
+      } catch (e) { /* ignore */ }
+    }
   }
 
-  function applyMobile(parts) {
+  function applyScale(parts) {
     var footer = parts.footer;
-    var root = parts.root;
+    var desktop = parts.desktop;
 
-    // Prefer Framer mobile variant for readable stacked chrome,
-    // while physics remaps into the fluid column width.
-    setVariant(root, VARIANT.mobile);
-    root.setAttribute('data-framer-name', 'Phone');
-
-    footer.classList.add('footer-mobile');
-    footer.classList.remove('footer-scaled');
+    // Always use the desktop composition so physics matches desktop behavior
+    desktop.classList.remove('framer-v-1ft20dn', 'framer-v-1mxjd72', 'framer-v-w2yl31');
+    if (!desktop.classList.contains('framer-v-egs4sy')) {
+      desktop.classList.add('framer-v-egs4sy');
+    }
+    if (!desktop.classList.contains('framer-egs4sy')) {
+      desktop.classList.add('framer-egs4sy');
+    }
+    desktop.setAttribute('data-framer-name', 'Desktop');
 
     var pageCol = document.querySelector('.framer-hVDZ8.framer-72rtr7') || document.querySelector('.framer-hVDZ8');
-    var availableWidth = (pageCol && pageCol.clientWidth) || footer.clientWidth || window.innerWidth || 390;
-    if (availableWidth > 900) {
-      // Safety for large portrait tablets: keep a comfortable column
-      availableWidth = Math.min(availableWidth, 768);
-    }
+    var availableWidth = footer.clientWidth || (pageCol && pageCol.clientWidth) || window.innerWidth || DESIGN_W;
+    if (!availableWidth) availableWidth = window.innerWidth || DESIGN_W;
 
     var scale = availableWidth / DESIGN_W;
-    if (!isFinite(scale) || scale <= 0) scale = 390 / DESIGN_W;
+    if (!isFinite(scale) || scale <= 0) scale = 1;
     if (scale > 1) scale = 1;
 
-    // Fluid mobile stage: full column width, tall enough for stacked UI + physics play area
-    footer.style.height = '';
-    footer.style.maxHeight = '';
-    footer.style.minHeight = '';
-    footer.dataset.footerScale = String(scale);
-    footer.dataset.footerMode = 'mobile';
-    footer.style.setProperty('--footer-scale', String(scale));
+    var scaledHeight = Math.round(DESIGN_H * scale * 1000) / 1000;
 
-    root.style.width = '100%';
-    root.style.maxWidth = '100%';
-    root.style.height = 'auto';
-    root.style.minHeight = Math.max(640, Math.round(DESIGN_H * Math.max(scale, 0.45))) + 'px';
-    root.style.transform = '';
-    root.style.webkitTransform = '';
+    footer.classList.add('footer-scaled');
+    footer.classList.remove('footer-mobile');
+    footer.style.height = scaledHeight + 'px';
+    footer.style.minHeight = scaledHeight + 'px';
+    footer.style.maxHeight = scaledHeight + 'px';
+    footer.dataset.footerScale = String(scale);
+    footer.dataset.footerMode = 'scaled';
+    footer.style.setProperty('--footer-scale', String(scale));
+    footer.style.setProperty('--footer-scaled-height', scaledHeight + 'px');
+
+    desktop.style.boxSizing = 'border-box';
+    desktop.style.width = DESIGN_W + 'px';
+    desktop.style.maxWidth = 'none';
+    desktop.style.height = DESIGN_H + 'px';
+    desktop.style.minHeight = DESIGN_H + 'px';
+    desktop.style.transformOrigin = 'top left';
+    desktop.style.webkitTransformOrigin = 'top left';
+    // Transform applied via CSS var(--footer-scale) with !important
+    desktop.style.transform = '';
+    desktop.style.webkitTransform = '';
 
     window.__footerScale = scale;
-    window.__footerMode = 'mobile';
+    window.__footerMode = 'scaled';
+
+    var scaleChanged = Math.abs(scale - lastScale) > 0.001;
+    var modeChanged = lastShouldScale !== true;
+    lastScale = scale;
+    lastShouldScale = true;
+
+    if (scaleChanged || modeChanged) {
+      try {
+        window.dispatchEvent(new CustomEvent('footer-scale-change', {
+          detail: { scale: scale, mode: 'scaled' }
+        }));
+      } catch (e) { /* ignore */ }
+    }
   }
 
   function updateFooterScale() {
     var parts = getFooterParts();
     if (!parts) return;
-
-    var mode = getMode();
-    if (mode === 'mobile') {
-      applyMobile(parts);
+    if (shouldScaleFooter()) {
+      applyScale(parts);
     } else {
-      applyDesktopLike(parts, mode);
-    }
-
-    var scale = window.__footerScale || 1;
-    var modeChanged = lastMode !== mode;
-    var scaleChanged = Math.abs(scale - lastScale) > 0.001;
-    lastMode = mode;
-    lastScale = scale;
-
-    if (modeChanged || scaleChanged) {
-      try {
-        window.dispatchEvent(new CustomEvent('footer-scale-change', {
-          detail: { scale: scale, mode: mode }
-        }));
-      } catch (e) {
-        /* ignore */
-      }
+      clearScale(parts);
     }
   }
 
@@ -209,16 +184,13 @@
   function init() {
     updateFooterScale();
     enhanceFooterAccessibility();
-
     window.addEventListener('resize', scheduleUpdate, { passive: true });
     window.addEventListener('orientationchange', function () {
       setTimeout(updateFooterScale, 120);
     }, { passive: true });
-
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', scheduleUpdate, { passive: true });
     }
-
     setTimeout(updateFooterScale, 100);
     setTimeout(updateFooterScale, 500);
     setTimeout(updateFooterScale, 1500);
@@ -247,8 +219,5 @@
   } else {
     init();
   }
-
-  window.addEventListener('load', function () {
-    updateFooterScale();
-  });
+  window.addEventListener('load', updateFooterScale);
 })();
